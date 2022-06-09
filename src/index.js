@@ -1,17 +1,23 @@
 import './style/main.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+
+import fragmentShader from './shader.frag';
+import vertexShader from './shader.vert';
+
 /**
  * GUI Controls
  */
-import * as dat from 'dat.gui'
-const gui = new dat.GUI()
+// import * as dat from 'dat.gui'
+// const gui = new dat.GUI()
 
 /**
  * Base
  */
 // Canvas
-const canvas = document.querySelector('canvas.webgl')
+const canvasLeft = document.querySelector('canvas.webgl.left')
+const canvasRight = document.querySelector('canvas.webgl.right')
 
 // Scene
 const scene = new THREE.Scene()
@@ -20,24 +26,32 @@ const scene = new THREE.Scene()
  * Object
  */
 const geometry = new THREE.IcosahedronGeometry(20, 1)
-const material = new THREE.MeshNormalMaterial()
+const material = new THREE.ShaderMaterial({
+  uniforms: {
+    envMap: { value: null },
+  },
+  vertexShader,
+  fragmentShader,
+})
 // Material Props.
-material.wireframe = true
+// material.wireframe = true
 // Create Mesh & Add To Scene
 const mesh = new THREE.Mesh(geometry, material)
 scene.add(mesh)
+
+const scene2 = scene.clone(true);
 
 /**
  * Sizes
  */
 const sizes = {
-  width: window.innerWidth,
+  width: window.innerWidth / 2,
   height: window.innerHeight,
 }
 
 window.addEventListener('resize', () => {
   // Update sizes
-  sizes.width = window.innerWidth
+  sizes.width = window.innerWidth / 2;
   sizes.height = window.innerHeight
 
   // Update camera
@@ -47,6 +61,8 @@ window.addEventListener('resize', () => {
   // Update renderer
   renderer.setSize(sizes.width, sizes.height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer2.setSize(sizes.width, sizes.height)
+  renderer2.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
 /**
@@ -65,7 +81,7 @@ camera.position.z = 50
 scene.add(camera)
 
 // Controls
-const controls = new OrbitControls(camera, canvas)
+const controls = new OrbitControls(camera, document.body);
 controls.enableDamping = true
 controls.autoRotate = true
 // controls.enableZoom = false
@@ -81,11 +97,42 @@ controls.touches = {
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
-  canvas: canvas,
+  canvas: canvasLeft,
   antialias: true,
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+const renderer2 = new THREE.WebGLRenderer({
+  canvas: canvasRight,
+  antialias: true,
+})
+renderer.setSize(sizes.width, sizes.height)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+/**
+ * Generate PMREM
+ */
+
+function loadEnvMap() {
+  console.log("starting hrd load");
+  new RGBELoader()
+    .setPath('./textures/')
+    .load('venice_sunset_1k.hdr', texture => {
+      console.log("=== loaded hdr")
+      const radianceMap = pmremGenerator.fromEquirectangular(texture).texture;
+      pmremGenerator.dispose();
+
+      console.log("=== compiled pmrem")
+      scene.background = radianceMap;
+      material.envMap = radianceMap;
+      material.uniforms.envMap.value = radianceMap;
+    });
+
+  const pmremGenerator = new THREE.PMREMGenerator(renderer);
+  pmremGenerator.compileEquirectangularShader();
+}
+loadEnvMap();
 
 /**
  * Animate
@@ -101,7 +148,8 @@ const tick = () => {
   // Update controls
   controls.update()
   // Render
-  renderer.render(scene, camera)
+  renderer.render(scene, camera);
+  renderer2.render(scene, camera);
 
   // Call tick again on the next frame
   window.requestAnimationFrame(tick)

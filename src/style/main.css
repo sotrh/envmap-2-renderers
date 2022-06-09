@@ -13,9 +13,17 @@ html
 .webgl
 {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+    width: 50%;
     height: 100%;
     background: #000000;
+}
+
+.left {
+    top: 0;
+    left: 0;
+}
+
+.right {
+    top: 0;
+    left: 50%;
 }
